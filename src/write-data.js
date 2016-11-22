@@ -4,12 +4,13 @@ var request = require('requestretry');
 var fs = Promise.promisifyAll(require('fs'));
 var aesDecrypter = require('aes-decrypter').Decrypter;
 var path = require('path');
+var utils = require('./utils');
 
-var writeFile = function(file, content) {
+var writeFile = function(file, content, verbose) {
   return mkdirp(path.dirname(file)).then(function() {
     return fs.writeFileAsync(file, content);
   }).then(function() {
-    console.log('Finished: ' + path.relative('.', file));
+    verbose && console.log('Finished: ' + path.relative('.', file));
   });
 };
 
@@ -47,25 +48,28 @@ var decryptFile = function(content, encryption) {
   });
 };
 
-var WriteData = function(decrypt, concurrency, resources) {
+var WriteData = function(decrypt, concurrency, resources, verbose) {
   var inProgress = [];
   var operations = [];
 
   resources.forEach(function(r) {
-    if (r.content) {
-      operations.push(function() { return writeFile(r.file, r.content); });
+    if (-1 === r.file.indexOf('.m3u8') && utils.fileExists(r.file)) {
+      operations.push(function () { return true; });
+    }
+    else if (r.content) {
+      operations.push(function() { return writeFile(r.file, r.content, verbose); });
     } else if (r.key && decrypt) {
       operations.push(function() {
         return requestFile(r.uri).then(function(content) {
           return decryptFile(content, r.key);
         }).then(function(content) {
-          return writeFile(r.file, content)
+          return writeFile(r.file, content, verbose)
         });
       });
     } else if (inProgress.indexOf(r.uri) === -1) {
       operations.push(function() {
         return requestFile(r.uri).then(function(content) {
-          return writeFile(r.file, content);
+          return writeFile(r.file, content, verbose);
         });
       });
       inProgress.push(r.uri);
@@ -75,7 +79,7 @@ var WriteData = function(decrypt, concurrency, resources) {
   return Promise.map(operations, function(o) {
     return Promise.join(o());
   }, {concurrency: concurrency}).all(function(o) {
-    console.log('DONE!');
+    verbose && console.log('DONE!');
     return Promise.resolve();
   });
 };

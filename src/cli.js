@@ -15,6 +15,12 @@ var pessimist = require('pessimist')
     .alias('d', 'decrypt')
     .default('d', false)
     .describe('d', 'decrypt and remove enryption from manifest (default: false)')
+    .alias('p', 'perpetual')
+    .default('p', false)
+    .describe('p', 'keep running until interrupted, useful for capturing live streams (default: false)')
+    .alias('v', 'verbose')
+    .default('v', false)
+    .describe('v', 'enable debug logging (default: false)')
     .argv;
 
 // Make output path
@@ -29,7 +35,7 @@ var options = {
 
 start(options).then(function() {
   var timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
-  console.log('Operation completed successfully in', timeTaken, 'seconds.');
+  options.verbose && console.log('Operation completed successfully in', timeTaken, 'seconds.');
   process.exit(0);
 }).catch(function(error) {
   console.error('ERROR', error);
